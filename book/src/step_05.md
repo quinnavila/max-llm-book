@@ -49,6 +49,15 @@ You'll implement the `Embedding` class in several steps:
 
 Run `pixi run s05` to verify your implementation.
 
-**Reference**: `solutions/solution_05.py`
+
+
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_05.py}}
+```
+
+</details>
 
 **Next**: In [Step 06](./step_06.md), you'll implement position embeddings to encode sequence order information, which will be combined with these token embeddings.

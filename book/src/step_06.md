@@ -1,14 +1,14 @@
 # Step 06: Position embeddings
 
 <div class="note">
-    Learn to create position embeddings that encode sequence order information for the model.
+    Learn to create position embeddings that encode the order of tokens in a sequence.
 </div>
 
 ## Implementing position embeddings
 
 In this step you'll create position embeddings to encode where each token appears in the sequence. While token embeddings tell the model "what" each token is, position embeddings tell it "where" the token is located. These position vectors are added to token embeddings before entering the transformer blocks.
 
-Transformers process all positions in parallel through attention, unlike RNNs that process sequentially. This parallelism enables faster training but loses positional information. Position embeddings restore this information so the model can distinguish "dog bites man" from "man bites dog".
+Transformers process all positions in parallel through attention, unlike Recurrent Neural Networks (RNNs) that process sequentially. This parallelism enables faster training but loses positional information. Position embeddings restore this information so the model can distinguish "dog bites man" from "man bites dog".
 
 ## Understanding position embeddings
 
@@ -55,6 +55,15 @@ You'll implement the position embeddings in several steps:
 
 Run `pixi run s06` to verify your implementation.
 
-**Reference**: `solutions/solution_06.py`
 
-**Next**: In [Step 07](./step_07.md), you'll begin implementing the attention mechanism, starting with Query/Key/Value projections.
+
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_06.py}}
+```
+
+</details>
+
+**Next**: In [Step 07](./step_07.md), you'll implement multi-head attention.

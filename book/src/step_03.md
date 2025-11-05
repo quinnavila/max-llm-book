@@ -4,28 +4,33 @@
     Learn to implement layer normalization for stabilizing neural network training.
 </div>
 
-## Implementing layer normalization
+## Building layer normalization
 
-In this step you'll create the `LayerNorm` class. This normalizes activations across the feature dimension to stabilize training. The process: compute mean and variance across features, normalize by subtracting mean and dividing by standard deviation, then scale and shift using learned weight and bias parameters.
+In this step, you'll create the `LayerNorm` class that normalizes activations across the feature dimension. For each input, you compute the mean and variance across all features, normalize by subtracting the mean and dividing by the standard deviation, then apply learned weight and bias parameters to scale and shift the result.
 
-Unlike batch normalization, [layer normalization](https://arxiv.org/abs/1607.06450) works independently for each example. This makes it ideal for transformers because it doesn't depend on batch size or require tracking running statistics for inference.
+Unlike batch normalization, [layer normalization](https://arxiv.org/abs/1607.06450) works independently for each example. This makes it ideal for transformers - no dependence on batch size, no tracking running statistics during inference, and consistent behavior between training and generation.
 
-## Understanding layer normalization
+GPT-2 applies layer normalization before the attention and MLP blocks in each of its 12 transformer layers. This pre-normalization pattern stabilizes training in deep networks by keeping activations in a consistent range.
+
+## Understanding the operation
 
 Layer normalization normalizes across the feature dimension (the last dimension) independently for each example. It learns two parameters per feature: weight (gamma) for scaling and bias (beta) for shifting.
 
-**The normalization formula**:
+The normalization follows this formula:
 
 ```math
 output = weight * (x - mean) / sqrt(variance + epsilon) + bias
 ```
 
-GPT-2 applies layer normalization before the attention and MLP blocks in each transformer layer. The epsilon value (typically 1e-5) prevents division by zero.
+The mean and variance are computed across all features in each example. After normalizing to zero mean and unit variance, the learned weight scales the result and the learned bias shifts it. The epsilon value (typically 1e-5) prevents division by zero when variance is very small.
 
 <div class="note">
 <div class="title">MAX operations</div>
 
 You'll use the following MAX operations to complete this task:
+
+**Modules**:
+- [`Module`](https://docs.modular.com/max/api/python/nn/module_v3/): The Module class used for eager tensors
 
 **Tensor initialization**:
 - [`Tensor.ones()`](https://docs.modular.com/max/api/python/experimental/tensor#max.experimental.tensor.Tensor.ones): Creates tensor filled with 1.0 values
@@ -36,17 +41,19 @@ You'll use the following MAX operations to complete this task:
 
 </div>
 
-## Implementing the class
+## Implementing layer normalization
 
-You'll implement the `LayerNorm` class in several steps:
+You'll create the `LayerNorm` class that wraps MAX's layer normalization function with learnable parameters. The implementation is straightforward - two parameters and a single function call.
 
-1. **Import required modules**: Import `functional as F` and `Tensor` from MAX libraries.
+First, import the required modules. You'll need `functional as F` for the layer norm operation and `Tensor` for creating parameters.
 
-2. **Initialize weight parameter**: Use `Tensor.ones([dim])` to create the weight parameter (gamma). Initialized to ones so initial normalization is identity.
+In the `__init__` method, create two learnable parameters:
+- Weight: `Tensor.ones([dim])` stored as `self.weight` - initialized to ones so the initial transformation is identity
+- Bias: `Tensor.zeros([dim])` stored as `self.bias` - initialized to zeros so there's no initial shift
 
-3. **Initialize bias parameter**: Use `Tensor.zeros([dim])` to create the bias parameter (beta). Initialized to zeros so initial normalization has no shift.
+Store the epsilon value as `self.eps` for numerical stability.
 
-4. **Apply layer normalization**: Use `F.layer_norm(x, gamma=self.weight, beta=self.bias, epsilon=self.eps)` in the forward pass.
+In the `forward` method, apply layer normalization with `F.layer_norm(x, gamma=self.weight, beta=self.bias, epsilon=self.eps)`. This computes the normalization and applies the learned parameters in one operation.
 
 **Implementation** (`step_03.py`):
 
@@ -58,6 +65,15 @@ You'll implement the `LayerNorm` class in several steps:
 
 Run `pixi run s03` to verify your implementation.
 
-**Reference**: `solutions/solution_03.py`
+
+
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_03.py}}
+```
+
+</details>
 
 **Next**: In [Step 04](./step_04.md), you'll implement the feed-forward network (MLP) with GELU activation used in each transformer block.

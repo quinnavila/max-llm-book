@@ -1,101 +1,73 @@
-# Step 09: Multi-head attention
+# Step 09: Transformer block
 
 <div class="note">
-    Learn to extend single-head attention to multi-head attention, enabling the model to attend to different representation subspaces.
+    Learn to combine attention, MLP, layer normalization, and residual connections into a complete transformer block.
 </div>
 
-## Implementing multi-head attention
+## Building the transformer block
 
-In this step you'll extend single-head attention to multi-head attention. Instead of one attention operation, you'll run 12 attention operations in parallel, each learning to focus on different patterns.
+In this step, you'll build the `GPT2Block` class - the fundamental repeating unit of GPT-2. Each block combines multi-head attention and a feed-forward network, with layer normalization and residual connections around each.
 
-GPT-2 uses 12 heads with 768-dimensional embeddings. Each head operates on 768 ÷ 12 = 64 dimensions. This 64-dimensional head size strikes a balance: large enough to capture meaningful patterns, small enough to allow multiple specialized heads. The Q, K, V tensors are reshaped to split the embedding dimension across heads, then attention is computed for all heads in parallel. The outputs are concatenated back together.
+The block processes input through two sequential operations. First, it applies layer norm, runs multi-head attention, then adds the result back to the input (residual connection). Second, it applies another layer norm, runs the MLP, and adds that result back. This pattern is `x = x + sublayer(layer_norm(x))`, called pre-normalization.
 
-Multiple heads let the model learn complementary attention strategies. Different heads can specialize in different types of relationships: one might attend to adjacent tokens, another to syntactic patterns, another to semantic similarity. This increases the model's capacity without dramatically increasing computation.
+GPT-2 uses pre-norm because it stabilizes training in deep networks. By normalizing before each sublayer instead of after, gradients flow more smoothly through the network's 12 stacked blocks.
 
-## Understanding multi-head attention
+## Understanding the components
 
-**Head Splitting**:
-- Transform `[batch, seq_length, n_embd]` → `[batch, num_heads, seq_length, head_dim]`
-- First reshape to add head dimension: `[batch, seq_length, num_heads, head_dim]`
-- Then transpose to move heads: `[batch, num_heads, seq_length, head_dim]`
-- GPT-2: 768 dims split into 12 heads × 64 dims/head
-- Each head operates independently on its 64-dimensional subspace
+The transformer block consists of four components, applied in this order:
 
-**Head Merging**:
-- Reverse of splitting: `[batch, num_heads, seq_length, head_dim]` → `[batch, seq_length, n_embd]`
-- First transpose: `[batch, seq_length, num_heads, head_dim]`
-- Then reshape to flatten heads: `[batch, seq_length, n_embd]`
-- Concatenates all head outputs back into original dimension
+**First layer norm (`ln_1`)**: Normalizes the input before attention. Uses epsilon=1e-5 for numerical stability.
 
-**Parallel Attention**:
-- Same attention mechanism as Step 08, but applied to all heads simultaneously
-- Shape `[batch, num_heads, seq_length, head_dim]` allows broadcasting
-- Q @ K^T operates on last two dimensions: `[seq_length, head_dim] @ [head_dim, seq_length]`
-- All heads computed in single operation (highly efficient)
+**Multi-head attention (`attn`)**: The self-attention mechanism from Step 07. Lets each position attend to all previous positions.
 
-**Output Projection (c_proj)**:
-- After merging heads, apply learned linear transformation
-- Maps `[batch, seq_length, n_embd]` → `[batch, seq_length, n_embd]`
-- Allows model to mix information across heads
-- Essential for combining the different head perspectives
+**Second layer norm (`ln_2`)**: Normalizes before the MLP. Same configuration as the first.
 
-**HuggingFace Architecture**:
-- `c_attn`: Combined Q/K/V projection to `3 * n_embd`
-- `c_proj`: Output projection after merging heads
-- This naming matches original GPT-2 implementation
-- Required for loading pretrained weights
+**Feed-forward network (`mlp`)**: The position-wise MLP from Step 04. Expands to 3,072 dimensions internally (4× the embedding size), then projects back to 768.
 
-<div class="note">
-<div class="title">MAX operations</div>
+The block maintains a constant 768-dimensional representation throughout. Input shape `[batch, seq_length, 768]` stays the same after each sublayer, which is essential for stacking 12 blocks together.
 
-You'll use the following MAX operations to complete this task:
+## Understanding the flow
 
-**Linear layers**:
-- [`Linear(in_features, out_features, bias=True)`](https://docs.modular.com/max/api/python/nn/module_v3#max.nn.module_v3.Linear): Q/K/V and output projections
+Each sublayer follows the pre-norm pattern:
 
-**Tensor operations**:
-- `tensor.reshape(new_shape)`: Splits or merges head dimension
-- `tensor.transpose(axis1, axis2)`: Rearranges dimensions for parallel attention
-- [`F.split(tensor, split_sizes, axis)`](https://docs.modular.com/max/api/python/experimental/functional#max.experimental.functional.split): Divides Q/K/V from combined projection
+1. Save the input as `residual`
+2. Apply layer normalization to the input
+3. Process through the sublayer (attention or MLP)
+4. Add the original `residual` back to the output
 
-</div>
+This happens twice per block - once for attention, once for the MLP. The residual connections let gradients flow directly through the network, preventing vanishing gradients in deep models.
 
-## Implementation tasks
+Component names (`ln_1`, `attn`, `ln_2`, `mlp`) match Hugging Face's GPT-2 implementation. This matters for loading pretrained weights in later steps.
 
-1. **Import Required Modules** (Lines 13-15):
-   - Copy imports from `solution_08.py` (math, F, Tensor, Device, DType, Dim, DimLike)
-   - Add imports for `Linear` and `Module` from `max.nn.module_v3`
-   - Copy the `causal_mask` function from Step 08
+## Implementing the block
 
-2. **Create Projection Layers** (Lines 38-43):
-   - Create `c_attn`: `Linear(self.embed_dim, 3 * self.embed_dim, bias=True)`
-   - Create `c_proj`: `Linear(self.embed_dim, self.embed_dim, bias=True)`
-   - Store `self.num_heads` and `self.head_dim` from config
+You'll create the `GPT2Block` class by composing the components from earlier steps. The block takes `GPT2Config` and creates four sublayers, then applies them in sequence with residual connections.
 
-3. **Implement _split_heads** (Lines 58-64):
-   - Calculate new shape: `tensor.shape[:-1] + [num_heads, attn_head_size]`
-   - Reshape to add head dimension: `tensor.reshape(new_shape)`
-   - Transpose to move heads to position 1: `tensor.transpose(-3, -2)`
-   - Returns shape `[batch, num_heads, seq_length, head_size]`
+First, import the required modules. You'll need `Module` from MAX, plus the previously implemented components: `GPT2Config`, `GPT2MLP`, `GPT2MultiHeadAttention`, and `LayerNorm`.
 
-4. **Implement _merge_heads** (Lines 79-85):
-   - Transpose heads back: `tensor.transpose(-3, -2)`
-   - Calculate flattened shape: `tensor.shape[:-2] + [num_heads * attn_head_size]`
-   - Reshape to remove head dimension: `tensor.reshape(new_shape)`
-   - Returns shape `[batch, seq_length, n_embd]`
+In the `__init__` method, create the four sublayers:
+- `ln_1`: `LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)`
+- `attn`: `GPT2MultiHeadAttention(config)`
+- `ln_2`: `LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)`
+- `mlp`: `GPT2MLP(4 * config.n_embd, config)`
 
-5. **Implement _attn** (Lines 100-103):
-   - Copy the attention computation from Step 08's `compute_attention` function
-   - Same 5-step process: compute scores, scale, mask, softmax, weighted sum
-   - Works identically but operates on all heads in parallel
+The MLP uses `4 * config.n_embd` (3,072 dimensions) as its inner dimension, following the standard transformer ratio.
 
-6. **Implement Forward Pass** (Lines 117-138):
-   - Project input: `qkv = self.c_attn(hidden_states)`
-   - Split Q/K/V: `F.split(qkv, [self.split_size, self.split_size, self.split_size], axis=-1)`
-   - Split heads for each: `self._split_heads(query, self.num_heads, self.head_dim)` (and for key, value)
-   - Compute attention: `self._attn(query, key, value)`
-   - Merge heads: `self._merge_heads(attn_output, self.num_heads, self.head_dim)`
-   - Output projection: `self.c_proj(attn_output)`
+In the `forward` method, implement the two sublayer blocks:
+
+**Attention block**:
+1. Save `residual = hidden_states`
+2. Normalize: `hidden_states = self.ln_1(hidden_states)`
+3. Apply attention: `attn_output = self.attn(hidden_states)`
+4. Add back: `hidden_states = attn_output + residual`
+
+**MLP block**:
+1. Save `residual = hidden_states`
+2. Normalize: `hidden_states = self.ln_2(hidden_states)`
+3. Apply MLP: `feed_forward_hidden_states = self.mlp(hidden_states)`
+4. Add back: `hidden_states = residual + feed_forward_hidden_states`
+
+Finally, return `hidden_states`.
 
 **Implementation** (`step_09.py`):
 
@@ -107,6 +79,15 @@ You'll use the following MAX operations to complete this task:
 
 Run `pixi run s09` to verify your implementation.
 
-**Reference**: `solutions/solution_09.py`
 
-**Next**: In [Step 10](./step_10.md), you'll implement residual connections and layer normalization to enable training deep transformer networks.
+
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_09.py}}
+```
+
+</details>
+
+**Next**: In [Step 10](./step_10.md), you'll stack 12 transformer blocks together to create the complete GPT-2 model architecture.

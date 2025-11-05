@@ -4,23 +4,25 @@
     Learn to build the feed-forward network (MLP) that processes information after attention in each transformer block.
 </div>
 
-## Implementing the MLP
+## Building the MLP
 
-In this step you'll build the `MLP` class, a two-layer feed-forward network that appears after the attention mechanism in every transformer block. The MLP expands the embedding dimension by 4x (768 → 3072), applies a GELU activation function, then projects back to the original dimension (3072 → 768).
+In this step, you'll create the `GPT2MLP` class - a two-layer feed-forward network that appears after attention in every transformer block. The MLP expands the embedding dimension by 4× (768 → 3,072), applies GELU activation for non-linearity, then projects back to the original dimension.
 
-While attention aggregates information across tokens through weighted sums, the MLP adds crucial non-linearity through the GELU activation. This allows the model to learn complex patterns beyond what linear transformations can capture.
+While attention lets tokens communicate with each other, the MLP processes each position independently. Attention aggregates information through weighted sums (linear operations), but the MLP adds non-linearity through GELU activation. This combination allows the model to learn complex patterns beyond what linear transformations alone can capture.
 
-## Understanding the architecture
+GPT-2 uses a 4× expansion ratio (768 to 3,072 dimensions) because this was found to work well in the original Transformer paper and has been validated across many architectures since.
 
-The MLP consists of two linear layers with GELU activation between them:
+## Understanding the components
 
-1. **Expansion layer (c_fc)**: Projects from embedding dimension (768) to intermediate size (3072 = 4×768). The 4× expansion ratio comes from the original Transformer paper and has been empirically validated across many architectures.
-2. **GELU activation**: Applies smooth non-linear transformation
-3. **Projection layer (c_proj)**: Projects from intermediate size back to embedding dimension (768)
+The MLP has three steps applied in sequence:
 
-GELU (Gaussian Error Linear Unit) is the activation function used in GPT-2. The `approximate="tanh"` parameter uses a tanh-based approximation instead of the exact Gaussian computation. At the time GPT-2 was implemented, the exact GELU was too slow, so the tanh approximation was used. While exact GELU is fast enough now, we use the approximation to match GPT-2's original implementation for weight compatibility.
+**Expansion layer (`c_fc`)**: Projects from 768 to 3,072 dimensions using a linear layer. This expansion gives the network more capacity to process information.
 
-The layer names `c_fc` and `c_proj` match the original GPT-2 checkpoint structure for weight loading compatibility.
+**GELU activation**: Applies Gaussian Error Linear Unit, a smooth non-linear function. GPT-2 uses `approximate="tanh"` for the tanh-based approximation instead of the exact computation. This approximation was faster when GPT-2 was implemented - while exact GELU is fast enough now, we use the approximation to match the original weights.
+
+**Projection layer (`c_proj`)**: Projects back from 3,072 to 768 dimensions using another linear layer. This returns to the embedding dimension so outputs can be added to residual connections.
+
+The layer names `c_fc` (fully connected) and `c_proj` (projection) match Hugging Face's GPT-2 checkpoint structure. This naming is essential for loading pretrained weights.
 
 <div class="note">
 <div class="title">MAX operations</div>
@@ -35,21 +37,24 @@ You'll use the following MAX operations to complete this task:
 
 </div>
 
-## Implementing the class
+## Implementing the MLP
 
-You'll implement the `MLP` class in several steps:
+You'll create the `GPT2MLP` class that chains two linear layers with GELU activation between them. The implementation is straightforward - three operations applied in sequence.
 
-1. **Import required modules**: Import `functional as F`, `Tensor`, `Linear`, and `Module` from MAX libraries.
+First, import the required modules. You'll need `functional as F` for the GELU activation, `Tensor` for type hints, `Linear` for the layers, and `Module` as the base class.
 
-2. **Create expansion layer**: Use `Linear(embed_dim, intermediate_size, bias=True)` and store in `self.c_fc`.
+In the `__init__` method, create two linear layers:
+- Expansion layer: `Linear(embed_dim, intermediate_size, bias=True)` stored as `self.c_fc`
+- Projection layer: `Linear(intermediate_size, embed_dim, bias=True)` stored as `self.c_proj`
 
-3. **Create projection layer**: Use `Linear(intermediate_size, embed_dim, bias=True)` and store in `self.c_proj`.
+Both layers include bias terms (`bias=True`). The intermediate size is typically 4× the embedding dimension.
 
-4. **Apply expansion**: In the forward pass, apply `self.c_fc(hidden_states)` to expand the representation to intermediate size.
+In the `forward` method, apply the three transformations:
+1. Expand: `hidden_states = self.c_fc(hidden_states)`
+2. Activate: `hidden_states = F.gelu(hidden_states, approximate="tanh")`
+3. Project: `hidden_states = self.c_proj(hidden_states)`
 
-5. **Apply GELU**: Use `F.gelu(hidden_states, approximate="tanh")` for non-linear transformation.
-
-6. **Apply projection**: Apply `self.c_proj(hidden_states)` to project back to original dimension and return the result.
+Return the final `hidden_states`. The input and output shapes are the same: `[batch, seq_length, embed_dim]`.
 
 **Implementation** (`step_04.py`):
 
@@ -61,6 +66,13 @@ You'll implement the `MLP` class in several steps:
 
 Run `pixi run s04` to verify your implementation.
 
-**Reference**: `solutions/solution_04.py`
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_04.py}}
+```
+
+</details>
 
 **Next**: In [Step 05](./step_05.md), you'll implement token embeddings to convert discrete token IDs into continuous vector representations.

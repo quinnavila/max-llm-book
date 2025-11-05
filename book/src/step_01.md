@@ -10,19 +10,19 @@ Before you can implement GPT-2, you need to define its architecture - the dimens
 
 In this step, you'll create `GPT2Config`, a class that holds all the architectural decisions for GPT-2. This class describes things like: embedding dimensions, number of transformer layers, and number of attention heads. These parameters define the shape and capacity of your model.
 
-OpenAI trained the original GPT-2 model with specific parameters that you can see in the [config.json file](https://huggingface.co/openai-community/gpt2/blob/main/config.json) on Hugging Face. By using the exact same values, we can later load OpenAI's pretrained weights.
+OpenAI trained the original GPT-2 model with specific parameters that you can see in the [config.json file](https://huggingface.co/openai-community/gpt2/blob/main/config.json) on Hugging Face. By using the exact same values, we can access OpenAI's pretrained weights in subsequent steps.
 
 ## Understanding the parameters
 
 The GPT-2 configuration consists of seven key parameters. Each one controls a different aspect of the model's architecture:
 
-- `vocab_size`: Size of the token vocabulary (default: 50,257). This seemingly odd number is actually 50,000 BPE tokens + 256 byte-level tokens (fallback for rare characters) + 1 special token. GPT-2 uses byte-pair encoding (BPE) for tokenization.
+- `vocab_size`: Size of the token vocabulary (default: 50,257). This seemingly odd number is actually 50,000 Byte Pair Encoding tokens + 256 byte-level tokens (fallback for rare characters) + 1 special token.
 - `n_positions`: Maximum sequence length, also called the context window (default: 1,024). This limit is a tradeoff between memory usage, computational cost, and the amount of context the model can attend to. Longer sequences require quadratic memory in attention.
 - `n_embd`: Embedding dimension - the size of the hidden states that flow through the model (default: 768). This determines the model's capacity to represent information.
 - `n_layer`: Number of transformer blocks stacked vertically (default: 12). More layers allow the model to learn more complex patterns.
 - `n_head`: Number of attention heads per layer (default: 12). Multiple heads let the model attend to different types of patterns simultaneously.
 - `n_inner`: Dimension of the MLP intermediate layer (default: 3,072). This is 4× the embedding dimension, a ratio found empirically in the original Transformer paper to work well.
-- `layer_norm_epsilon`: Small constant for numerical stability in layer normalization (default: 1e-5). Prevents division by zero when variance is very small.
+- `layer_norm_epsilon`: Small constant for numerical stability in layer normalization (default: 1e-5). This prevents division by zero when variance is very small.
 
 These values define the _small_ GPT-2 model. OpenAI released four sizes (small, medium, large, XL), each with different configurations that scale up these parameters.
 
@@ -51,6 +51,15 @@ Once you have the values, replace each `None` in the `GPT2Config` class properti
 
 Run `pixi run s01` to verify your implementation matches the expected configuration.
 
-**Reference**: `steps/step_01.py`
+
+
+<details>
+<summary>Show solution</summary>
+
+```python
+{{#include ../../solutions/solution_01.py}}
+```
+
+</details>
 
 **Next**: In [Step 02](./step_02.md), you'll implement causal masking to prevent tokens from attending to future positions in autoregressive generation.
