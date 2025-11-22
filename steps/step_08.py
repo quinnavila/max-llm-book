@@ -19,6 +19,10 @@ Run: pixi run s08
 # Hint: You'll need DimLike from max.graph
 # Hint: You'll need Module from max.nn.module_v3
 
+from max.experimental import functional as F
+from max.experimental.tensor import Tensor
+from max.graph import DimLike
+from max.nn.module_v3 import Module
 
 class LayerNorm(Module):
     """Layer normalization module matching HuggingFace GPT-2."""
@@ -35,11 +39,11 @@ class LayerNorm(Module):
 
         # TODO: Create learnable scale parameter (weight)
         # Hint: Use Tensor.ones([dim])
-        self.weight = None
+        self.weight = Tensor.ones([dim])
 
         # TODO: Create learnable shift parameter (bias)
         # Hint: Use Tensor.zeros([dim])
-        self.bias = None
+        self.bias = Tensor.zeros([dim])
 
     def __call__(self, x: Tensor) -> Tensor:
         """Apply layer normalization.
@@ -50,9 +54,8 @@ class LayerNorm(Module):
         Returns:
             Normalized tensor, same shape as input
         """
-        # TODO: Apply layer normalization
-        # Hint: Use F.layer_norm(x, gamma=self.weight, beta=self.bias, epsilon=self.eps)
-        return None
+        # TODO: Apply.layer_norm(x, gamma=self.weight, beta=self.bias, epsilon=self.eps)
+        return F.layer_norm(x, gamma=self.weight, beta=self.bias, epsilon=self.eps)
 
 
 class ResidualBlock(Module):
@@ -69,7 +72,7 @@ class ResidualBlock(Module):
 
         # TODO: Create layer normalization
         # Hint: Use LayerNorm(dim, eps=eps)
-        self.ln = None
+        self.ln = LayerNorm(dim, eps=eps)
 
     def __call__(self, x: Tensor, sublayer_output: Tensor) -> Tensor:
         """Apply residual connection.
@@ -83,7 +86,7 @@ class ResidualBlock(Module):
         """
         # TODO: Add input and sublayer output (residual connection)
         # Hint: return x + sublayer_output
-        return None
+        return x + sublayer_output
 
 
 def apply_residual_connection(input_tensor: Tensor, sublayer_output: Tensor) -> Tensor:
@@ -98,4 +101,4 @@ def apply_residual_connection(input_tensor: Tensor, sublayer_output: Tensor) -> 
     """
     # TODO: Add the two tensors
     # Hint: return input_tensor + sublayer_output
-    return None
+    return input_tensor + sublayer_output

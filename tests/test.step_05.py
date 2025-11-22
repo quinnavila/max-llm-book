@@ -3,7 +3,10 @@
 import ast
 import inspect
 from pathlib import Path
+import sys
+from max.nn.module_v3 import Module
 
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_step_05():
     """Comprehensive validation for Step 05 implementation."""
@@ -140,7 +143,7 @@ def test_step_05():
 
         # Check output shape
         expected_shape = (batch_size, seq_length, config.n_embd)
-        if output.shape == expected_shape:
+        if tuple(output.shape) == expected_shape:
             results.append(f"✅ Output shape is correct: {expected_shape}")
         else:
             results.append(

@@ -3,6 +3,9 @@
 import ast
 from pathlib import Path
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_step_12():
     """Comprehensive validation for Step 12 implementation."""
@@ -132,7 +135,7 @@ def test_step_12():
         from max.dtype import DType
         from max.experimental.tensor import Tensor
         from solutions.solution_01 import GPT2Config
-        from solutions.solution_13 import MaxGPT2LMHeadModel
+        from solutions.solution_11 import MaxGPT2LMHeadModel
 
         config = GPT2Config()
         model = MaxGPT2LMHeadModel(config)
@@ -140,14 +143,20 @@ def test_step_12():
         # Test generate_next_token
         batch_size = 1
         seq_length = 5
-        test_input = Tensor.randint(
-            0,
-            config.vocab_size,
-            batch_size,
-            seq_length,
-            dtype=DType.int64,
-            device=CPU(),
+        # test_input = Tensor.randint(
+        #     0,
+        #     config.vocab_size,
+        #     batch_size,
+        #     seq_length,
+        #     dtype=DType.int64,
+        #     device=CPU(),
+        # )
+        test_input = Tensor.constant(
+            [[1] * seq_length] * batch_size, 
+            dtype=DType.int64, 
+            device=CPU()
         )
+
 
         next_token = generate_next_token(
             model, test_input, temperature=1.0, do_sample=True

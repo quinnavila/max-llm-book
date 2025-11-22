@@ -14,9 +14,11 @@ Run: pixi run s05
 # TODO: Import required modules from MAX
 # Hint: You'll need Embedding and Module from max.nn.module_v3
 
+from max.nn.module_v3 import Embedding, Module
+
 from solutions.solution_01 import GPT2Config
 
-
+      
 class GPT2Embeddings(Module):
     """Token embeddings for GPT-2."""
 
@@ -26,7 +28,7 @@ class GPT2Embeddings(Module):
         # TODO: Create token embedding layer
         # Hint: Use Embedding(config.vocab_size, dim=config.n_embd)
         # This creates a lookup table that converts token IDs to embedding vectors
-        self.wte = None
+        self.wte = Embedding(config.vocab_size, dim=config.n_embd)
 
     def __call__(self, input_ids):
         """Convert token IDs to embeddings.
@@ -39,4 +41,4 @@ class GPT2Embeddings(Module):
         """
         # TODO: Return the embedded tokens
         # Hint: Simply call self.wte with input_ids
-        return None
+        return self.wte(input_ids)

@@ -20,7 +20,11 @@ Run: pixi run s10
 # Hint: Import GPT2Config from solutions.solution_01
 # Hint: Import LayerNorm from solutions.solution_08
 # Hint: Import GPT2Block from solutions.solution_09
-
+from max.experimental.tensor import Tensor
+from max.nn.module_v3 import Embedding, Module, Sequential
+from solutions.solution_01 import GPT2Config
+from solutions.solution_08 import LayerNorm
+from solutions.solution_09 import GPT2Block
 
 class GPT2Model(Module):
     """Complete GPT-2 transformer model."""
@@ -35,20 +39,20 @@ class GPT2Model(Module):
 
         # TODO: Create token embeddings
         # Hint: Use Embedding(config.vocab_size, dim=config.n_embd)
-        self.wte = None
+        self.wte = Embedding(config.vocab_size, dim=config.n_embd)
 
         # TODO: Create position embeddings
         # Hint: Use Embedding(config.n_positions, dim=config.n_embd)
-        self.wpe = None
+        self.wpe = Embedding(config.n_positions, dim=config.n_embd)
 
         # TODO: Stack transformer blocks
         # Hint: Use Sequential(*(GPT2Block(config) for _ in range(config.n_layer)))
         # This creates config.n_layer blocks (12 for GPT-2 base)
-        self.h = None
+        self.h = Sequential(*(GPT2Block(config) for _ in range(config.n_layer)))
 
         # TODO: Create final layer normalization
         # Hint: Use LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
-        self.ln_f = None
+        self.ln_f = LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
 
     def __call__(self, input_ids):
         """Forward pass through the transformer.
@@ -61,28 +65,29 @@ class GPT2Model(Module):
         """
         # TODO: Get batch size and sequence length
         # Hint: batch_size, seq_length = input_ids.shape
-        pass
+        batch_size, seq_length = input_ids.shape
 
         # TODO: Get token embeddings
         # Hint: tok_embeds = self.wte(input_ids)
-        pass
+        tok_embeds = self.wte(input_ids)
 
         # TODO: Get position embeddings
         # Hint: Create position indices with Tensor.arange(seq_length, dtype=input_ids.dtype, device=input_ids.device)
         # Hint: pos_embeds = self.wpe(position_indices)
-        pass
+        position_indices = Tensor.arange(seq_length, dtype=input_ids.dtype, device=input_ids.device)
+        pos_embeds = self.wpe(position_indices)
 
         # TODO: Combine embeddings
         # Hint: x = tok_embeds + pos_embeds
-        pass
+        x = tok_embeds + pos_embeds
 
         # TODO: Apply transformer blocks
         # Hint: x = self.h(x)
-        pass
+        x = self.h(x)
 
         # TODO: Apply final layer norm
         # Hint: x = self.ln_f(x)
-        pass
+        x = self.ln_f(x)
 
         # TODO: Return the output
-        return None
+        return x

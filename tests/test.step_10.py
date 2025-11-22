@@ -3,6 +3,9 @@
 import ast
 from pathlib import Path
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_step_10():
     """Comprehensive validation for Step 10 implementation."""
@@ -45,11 +48,11 @@ def test_step_10():
                 for alias in node.names:
                     if alias.name == "GPT2Config":
                         has_config = True
-            if node.module == "solutions.solution_10":
+            if node.module == "solutions.solution_08":
                 for alias in node.names:
                     if alias.name == "LayerNorm":
                         has_layernorm = True
-            if node.module == "solutions.solution_11":
+            if node.module == "solutions.solution_09":
                 for alias in node.names:
                     if alias.name == "GPT2Block":
                         has_block = True
@@ -263,13 +266,18 @@ def test_step_10():
         batch_size = 2
         seq_length = 8
         # Create random token IDs
-        test_input = Tensor.randint(
-            0,
-            config.vocab_size,
-            batch_size,
-            seq_length,
-            dtype=DType.int64,
-            device=CPU(),
+        # test_input = Tensor.randint(
+        #     0,
+        #     config.vocab_size,
+        #     batch_size,
+        #     seq_length,
+        #     dtype=DType.int64,
+        #     device=CPU(),
+        # )
+        test_input = Tensor.constant(
+            [[1] * seq_length] * batch_size, 
+            dtype=DType.int64, 
+            device=CPU()
         )
 
         output = model(test_input)
@@ -277,7 +285,7 @@ def test_step_10():
 
         # Check output shape
         expected_shape = (batch_size, seq_length, config.n_embd)
-        if output.shape == expected_shape:
+        if tuple(output.shape) == expected_shape:
             results.append(f"✅ Output shape is correct: {expected_shape}")
         else:
             results.append(

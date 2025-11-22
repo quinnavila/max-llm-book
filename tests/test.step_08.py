@@ -3,6 +3,9 @@
 import ast
 from pathlib import Path
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_step_08():
     """Comprehensive validation for Step 08 implementation."""
@@ -197,11 +200,13 @@ def test_step_08():
         else:
             results.append("❌ LayerNorm.bias attribute not found")
 
+        from max.experimental import random
+
         # Test forward pass
         batch_size = 2
         seq_length = 8
-        test_input = Tensor.randn(
-            batch_size, seq_length, dim, dtype=DType.float32, device=CPU()
+        test_input = random.normal(
+            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
         )
 
         output = ln(test_input)
@@ -209,7 +214,7 @@ def test_step_08():
 
         # Check output shape
         expected_shape = (batch_size, seq_length, dim)
-        if output.shape == expected_shape:
+        if tuple(output.shape) == expected_shape:
             results.append(f"✅ LayerNorm output shape is correct: {expected_shape}")
         else:
             results.append(
@@ -243,11 +248,11 @@ def test_step_08():
             results.append("❌ ResidualBlock.ln attribute not found")
 
         # Test residual connection
-        test_residual = Tensor.randn(
-            batch_size, seq_length, dim, dtype=DType.float32, device=CPU()
+        test_residual = random.normal(
+            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
         )
-        test_sublayer = Tensor.randn(
-            batch_size, seq_length, dim, dtype=DType.float32, device=CPU()
+        test_sublayer = random.normal(
+            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
         )
 
         residual_output = rb(test_residual, test_sublayer)
@@ -305,4 +310,4 @@ def test_step_08():
 
 
 if __name__ == "__main__":
-    test_step_10()
+    test_step_08()
