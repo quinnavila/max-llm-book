@@ -1,11 +1,11 @@
 """Tests for Step 08: Residual Connections and Layer Normalization"""
 
 import ast
+import sys
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def test_step_08():
     """Comprehensive validation for Step 08 implementation."""
@@ -89,6 +89,8 @@ def test_step_08():
         if "apply_residual_connection" in str(e):
             results.append("❌ apply_residual_connection function not found")
             results.append("   Hint: Define apply_residual_connection function")
+        else:
+            results.append("❌ Import error: " + str(e))
         print("\n".join(results))
         return
 
@@ -205,10 +207,15 @@ def test_step_08():
         # Test forward pass
         batch_size = 2
         seq_length = 8
-        test_input = random.normal(
-            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
+        test_input = Tensor.arange(
+            0,
+            1.0,
+            1 / (batch_size * seq_length * dim),
+            dtype=DType.float32,
+            device=CPU(),
         )
 
+        test_input = test_input.reshape((batch_size, seq_length, dim))
         output = ln(test_input)
         results.append("✅ LayerNorm forward pass executes without errors")
 
@@ -248,12 +255,21 @@ def test_step_08():
             results.append("❌ ResidualBlock.ln attribute not found")
 
         # Test residual connection
-        test_residual = random.normal(
-            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
-        )
-        test_sublayer = random.normal(
-            (batch_size, seq_length, dim), dtype=DType.float32, device=CPU()
-        )
+
+        test_residual = Tensor.arange(
+            0,
+            1.0,
+            1 / (batch_size * seq_length * dim),
+            dtype=DType.float32,
+            device=CPU(),
+        ).reshape((batch_size, seq_length, dim))
+        test_sublayer = Tensor.arange(
+            0,
+            0.7,
+            0.7 / (batch_size * seq_length * dim),
+            dtype=DType.float32,
+            device=CPU(),
+        ).reshape((batch_size, seq_length, dim))
 
         residual_output = rb(test_residual, test_sublayer)
         results.append("✅ ResidualBlock forward pass executes without errors")

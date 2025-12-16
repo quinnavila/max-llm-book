@@ -1,11 +1,11 @@
 """Tests for Step 10: Stacking Transformer Blocks"""
 
 import ast
+import sys
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def test_step_10():
     """Comprehensive validation for Step 10 implementation."""
@@ -97,13 +97,13 @@ def test_step_10():
         results.append("✅ LayerNorm is correctly imported")
     else:
         results.append("❌ LayerNorm is not imported")
-        results.append("   Hint: Add 'from solutions.solution_10 import LayerNorm'")
+        results.append("   Hint: Add 'from solutions.solution_08 import LayerNorm'")
 
     if has_block:
         results.append("✅ GPT2Block is correctly imported")
     else:
         results.append("❌ GPT2Block is not imported")
-        results.append("   Hint: Add 'from solutions.solution_11 import GPT2Block'")
+        results.append("   Hint: Add 'from solutions.solution_09 import GPT2Block'")
 
     # Phase 2: Structure checks
     try:
@@ -266,18 +266,18 @@ def test_step_10():
         batch_size = 2
         seq_length = 8
         # Create random token IDs
-        # test_input = Tensor.randint(
-        #     0,
-        #     config.vocab_size,
-        #     batch_size,
-        #     seq_length,
-        #     dtype=DType.int64,
-        #     device=CPU(),
-        # )
-        test_input = Tensor.constant(
-            [[1] * seq_length] * batch_size, 
-            dtype=DType.int64, 
-            device=CPU()
+        test_len = batch_size * seq_length
+        test_input = Tensor.arange(
+            0,
+            config.vocab_size,
+            1,
+            dtype=DType.int64,
+            device=CPU(),
+        )[:test_len].reshape(
+            (
+                batch_size,
+                seq_length,
+            )
         )
 
         output = model(test_input)

@@ -1,7 +1,7 @@
 """Tests for Step 05: Token Embeddings"""
 
 import ast
-import inspect
+from max.nn.module_v3 import Module
 from pathlib import Path
 import sys
 from max.nn.module_v3 import Module

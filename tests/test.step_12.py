@@ -1,11 +1,11 @@
 """Tests for Step 12: Text Generation"""
 
 import ast
+import sys
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def test_step_12():
     """Comprehensive validation for Step 12 implementation."""
@@ -70,6 +70,8 @@ def test_step_12():
         if "generate_tokens" in str(e):
             results.append("❌ generate_tokens function not found")
             results.append("   Hint: Define generate_tokens function")
+        else:
+            results.append("❌ Import error: " + str(e))
         print("\n".join(results))
         return
 
@@ -143,18 +145,10 @@ def test_step_12():
         # Test generate_next_token
         batch_size = 1
         seq_length = 5
-        # test_input = Tensor.randint(
-        #     0,
-        #     config.vocab_size,
-        #     batch_size,
-        #     seq_length,
-        #     dtype=DType.int64,
-        #     device=CPU(),
-        # )
-        test_input = Tensor.constant(
-            [[1] * seq_length] * batch_size, 
-            dtype=DType.int64, 
-            device=CPU()
+        test_input = Tensor.ones(
+            (batch_size, seq_length),
+            dtype=DType.int64,
+            device=CPU(),
         )
 
 

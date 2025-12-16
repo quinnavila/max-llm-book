@@ -1,6 +1,7 @@
 """Tests for Step 07: Multi-head Attention"""
 
 import ast
+import sys
 from pathlib import Path
 
 import sys
@@ -249,10 +250,7 @@ def test_step_07():
         # Test forward pass
         batch_size = 2
         seq_length = 8
-        # test_input = Tensor.randn(
-        #     batch_size, seq_length, config.n_embd, dtype=DType.float32, device=CPU()
-        # )
-        test_input = random.normal(
+        test_input = Tensor.ones(
             (batch_size, seq_length, config.n_embd), dtype=DType.float32, device=CPU()
         )
 
@@ -277,10 +275,7 @@ def test_step_07():
             results.append("❌ Output is all zeros")
 
         # Test _split_heads
-        # test_tensor = Tensor.randn(
-        #     batch_size, seq_length, config.n_embd, dtype=DType.float32, device=CPU()
-        # )
-        test_tensor = random.normal(
+        test_tensor = Tensor.ones(
             (batch_size, seq_length, config.n_embd), dtype=DType.float32, device=CPU()
         )
         split_output = mha._split_heads(test_tensor, config.n_head, mha.head_dim)

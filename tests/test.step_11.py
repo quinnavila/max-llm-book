@@ -1,11 +1,11 @@
 """Tests for Step 11: Language Model Head"""
 
 import ast
+import sys
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def test_step_11():
     """Comprehensive validation for Step 11 implementation."""
@@ -138,18 +138,10 @@ def test_step_11():
         # Test forward pass
         batch_size = 2
         seq_length = 8
-        # test_input = Tensor.randint(
-        #     0,
-        #     config.vocab_size,
-        #     batch_size,
-        #     seq_length,
-        #     dtype=DType.int64,
-        #     device=CPU(),
-        # )
-        test_input = Tensor.constant(
-            [[1] * seq_length] * batch_size, 
-            dtype=DType.int64, 
-            device=CPU()
+        test_input = Tensor.ones(
+            (batch_size, seq_length),
+            dtype=DType.int64,
+            device=CPU(),
         )
 
         output = model(test_input)

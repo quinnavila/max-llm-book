@@ -1,7 +1,7 @@
 """Tests for Step 06: Position Embeddings"""
 
 import ast
-import inspect
+import sys
 from pathlib import Path
 import sys
 

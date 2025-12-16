@@ -1,11 +1,11 @@
 """Tests for Step 09: Transformer Block"""
 
 import ast
+import sys
 from pathlib import Path
 
-import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
 
 def test_step_09():
     """Comprehensive validation for Step 09 implementation."""
@@ -233,7 +233,7 @@ def test_step_09():
         # Test forward pass
         batch_size = 2
         seq_length = 8
-        test_input = random.normal(
+        test_input = Tensor.ones(
             (batch_size, seq_length, config.n_embd), dtype=DType.float32, device=CPU()
         )
 
