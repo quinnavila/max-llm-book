@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Text generation - Build an LLM from scratch with MAX</title>
+        <title>KV cache configuration - Build an LLM from scratch with MAX</title>
 
 
         <!-- Custom HTML head -->
@@ -18,13 +18,13 @@
         
         <!-- Additional meta tags -->
         <meta property="og:title" content="Build an LLM from scratch with MAX">
-        <meta property="og:description" content="Learn by building LLMs from scratch with Modular's MAX Framework">
+        <meta property="og:description" content="Learn by building LLMs from scratch with Modular's MAX framework">
         <meta property="og:image" content="https://llm.modular.com/assets/social/modular-gpt-tutorial-metadata.png">
         <meta property="og:url" content="https://llm.modular.com/">
         <meta name="twitter:card" content="summary">
         <meta name="twitter:image:alt" content="MAX Docs">
         <meta name="twitter:title" content="Build an LLM from scratch with MAX">
-        <meta name="twitter:description" content="Learn by building LLMs from scratch with Modular's MAX Framework">
+        <meta name="twitter:description" content="Learn by building LLMs from scratch with Modular's MAX framework">
         <meta name="twitter:image" content="https://llm.modular.com/assets/social/modular-gpt-tutorial-metadata.png">
         <link rel="icon" type="image/png" href="https://llm.modular.com/assets/icons/m-dark.svg">
         <script>
@@ -197,311 +197,98 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="text-generation"><a class="header" href="#text-generation">Text generation</a></h1>
+                        <h1 id="kv-cache-configuration"><a class="header" href="#kv-cache-configuration">KV cache configuration</a></h1>
 <div class="note">
-<p>Learn to implement autoregressive text generation with sampling and temperature
-control.</p>
+<p>What the serving layer needs to know about GPT-2’s attention layout before
+the first token runs, and how <code>model_config.py</code> provides it.</p>
 </div>
-<p>In this final step, you’ll implement the generation loop that produces text one
-token at a time. The model predicts the next token, appends it to the sequence,
-feeds that into the model again, and repeats until reaching the desired length.</p>
-<p>Start with a prompt like “Hello world” (tokens <code>[15496, 995]</code>). The model
-predicts the next token, giving you <code>[15496, 995, 318]</code> (“Hello world is”). It
-predicts again, producing <code>[15496, 995, 318, 257]</code> (“Hello world is a”). This
-process continues, with each prediction feeding back as input for the next.</p>
-<p>You’ll implement two generation strategies: greedy decoding (always pick the
-highest-scoring token) and sampling (randomly choose according to
-probabilities). You’ll also add temperature control to adjust how random or
-focused the generation is—a higher temperature produces more variety (more
-hallucinations).</p>
-<h2 id="understanding-the-generation-loop"><a class="header" href="#understanding-the-generation-loop">Understanding the generation loop</a></h2>
-<p>The generation loop is simple: run the model, extract the next token prediction,
-append it to the sequence, repeat. Each iteration requires a full forward pass
-through all 12 transformer blocks.</p>
-<p>The model outputs logits with shape <code>[batch, seq_length, vocab_size]</code>. Since you
-only care about predicting the next token, extract the last position:
-<code>logits[0, -1, :]</code>. This gives you a vector of 50,257 scores, one per vocabulary
-token.</p>
-<p>These scores are logits (unnormalized), not probabilities. To convert them to
-probabilities, apply softmax. Then you can either pick the highest-probability
-token (greedy) or sample from the distribution (random).</p>
-<h2 id="understanding-temperature-control"><a class="header" href="#understanding-temperature-control">Understanding temperature control</a></h2>
-<p>Temperature scaling adjusts how random the generation is using the formula
-<code>scaled_logits = logits / temperature</code>.</p>
-<p>For GPT-2, setting the temperature to 1.0 uses the original distribution. With
-temperature 0.7, you sharpen the distribution, and high-probability tokens
-become even more likely, making generation more focused and deterministic. With
-temperature 1.2, you flatten the distribution, and lower-probability tokens get
-more chances, making generation more diverse and creative. GPT-2 temperature
-must be between 0 and 2.0.</p>
-<p>Temperature is applied before softmax. Dividing by a value less than 1 makes
-large logits even larger (sharpening), while dividing by a value greater than 1
-reduces the differences between logits (flattening).</p>
-<h2 id="understanding-sampling-vs-greedy"><a class="header" href="#understanding-sampling-vs-greedy">Understanding sampling vs greedy</a></h2>
-<p>Greedy decoding always picks the highest-probability token using
-<a href="https://docs.modular.com/max/api/python/functional#max.experimental.functional.argmax"><code>F.argmax</code></a>.
-It’s fast, deterministic, and simple, but often produces repetitive text because
-the model keeps choosing the safest option.</p>
-<p>Sampling randomly selects tokens according to their probabilities. Convert
-logits to probabilities with <code>F.softmax</code>, transfer to CPU, convert to NumPy with
-<code>np.from_dlpack</code>, ensure the array is 1D and has float dtype (required by
-<code>np.random.choice</code>), then sample with <code>np.random.choice</code>. You use NumPy because
-MAX doesn’t have built-in sampling yet.</p>
-<p>Most practical generation uses sampling with temperature control. This balances
-creativity with coherence, as the model can explore different possibilities
-while still favoring high-quality continuations.</p>
-<div class="note">
-<div class="title">MAX operations</div>
-<p>You’ll use the following MAX operations to complete this task:</p>
-<p><strong>Probability operations</strong>:</p>
-<ul>
-<li><a href="https://docs.modular.com/max/api/python/functional#max.experimental.functional.softmax"><code>F.softmax(logits)</code></a>:
-Converts logits to probabilities</li>
-<li><a href="https://docs.modular.com/max/api/python/functional#max.experimental.functional.argmax"><code>F.argmax(logits)</code></a>:
-Selects highest-probability token (greedy)</li>
-</ul>
-<p><strong>Sequence building</strong>:</p>
-<ul>
-<li><a href="https://docs.modular.com/max/api/python/functional#max.experimental.functional.concat"><code>F.concat([seq, new_token], axis=1)</code></a>:
-Appends token to sequence</li>
-<li><a href="https://docs.modular.com/max/api/python/tensor#max.experimental.tensor.Tensor.constant"><code>Tensor.constant(value, dtype, device)</code></a>:
-Creates scalar tensors</li>
-</ul>
-<p><strong>NumPy interop</strong>:</p>
-<ul>
-<li><code>probs.to(CPU())</code>: Transfers tensor to CPU</li>
-<li><code>np.from_dlpack(probs)</code>: Converts MAX tensor to NumPy for sampling</li>
-</ul>
-</div>
-<h2 id="implementing-text-generation"><a class="header" href="#implementing-text-generation">Implementing text generation</a></h2>
-<p>You’ll create two functions: <code>generate_next_token</code> that predicts a single token,
-and <code>generate</code> that loops to produce full sequences.</p>
-<p>First, import the required modules. You’ll need <code>numpy</code> for sampling, <code>CPU</code> from
-MAX’s driver, <code>DType</code> for type constants, <code>functional as F</code> for operations like
-softmax and argmax, and <code>Tensor</code> for creating tensors.</p>
-<p>In <code>generate_next_token</code>, implement the prediction logic:</p>
-<ol>
-<li>Run the model to get logits: <code>logits = model(input_ids)</code></li>
-<li>Extract the last position (next token prediction):
-<code>next_token_logits = logits[0, -1, :]</code></li>
-<li>If using temperature, scale the logits by dividing by the temperature tensor</li>
-<li>For sampling: convert to probabilities with <code>F.softmax</code>, transfer to CPU,
-convert to NumPy with explicit type annotation (<code>probs_np: np.ndarray</code>),
-flatten if needed, convert to float64 with <code>.astype(np.float64)</code> (required by
-<code>np.random.choice</code>), sample with <code>np.random.choice</code>, then convert back to a
-MAX tensor</li>
-<li>For greedy: use <code>F.argmax</code> to select the highest-scoring token</li>
-</ol>
-<p>The temperature must be a tensor with the same dtype and device as the logits.
-Create it with <code>Tensor.constant(temperature, dtype=..., device=...)</code>.</p>
-<p>In <code>generate</code>, implement the generation loop:</p>
-<ol>
-<li>Initialize with the input: <code>generated_tokens = input_ids</code></li>
-<li>Loop <code>max_new_tokens</code> times</li>
-<li>Generate the next token:
-<code>next_token = generate_next_token(model, generated_tokens, ...)</code></li>
-<li>Reshape to 2D: <code>next_token_2d = next_token.reshape([1, -1])</code></li>
-<li>Concatenate to the sequence:
-<code>generated_tokens = F.concat([generated_tokens, next_token_2d], axis=1)</code></li>
-<li>Return the complete sequence</li>
-</ol>
-<p>The reshape is necessary because <code>concat</code> requires matching dimensions, and the
-generated token is 0D (scalar).</p>
-<p><strong>Implementation</strong> (<code>step_10.py</code>):</p>
-<pre><code class="language-python"># ===----------------------------------------------------------------------=== #
-#
-# This file is Modular Inc proprietary.
-#
-# ===----------------------------------------------------------------------=== #
-"""
-Step 10: Text Generation
+<p>GPT-2 doesn’t use a KV cache. Every decode step re-processes the full token
+sequence from position 0, so there’s nothing to cache between steps. The
+serving interface requires cache dimensions regardless.</p>
+<p><a href="https://docs.modular.com/max/api/python/generated/max.pipelines.lib.PipelineModelWithKVCache/"><code>PipelineModelWithKVCache</code></a>,
+the base class <code>GPT2PipelineModel</code> extends, requires an architecture config that
+exposes cache dimensions regardless. MAX uses those dimensions to allocate cache
+space as part of its serving infrastructure. <code>GPT2ArchConfig</code> satisfies that
+interface; the cache is allocated, but GPT-2’s forward pass never reads from or
+writes to it.</p>
+<h2 id="why-max-requires-this-interface"><a class="header" href="#why-max-requires-this-interface">Why MAX requires this interface</a></h2>
+<p>Generating each new token requires attending to all previous tokens. Without
+a cache, every decode step recomputes key and value tensors for the full token
+history: a 10-token sequence becomes 11 on the next decode step, 12 on
+the step after, and so on. A KV
+cache breaks this growth: it stores the key and value tensors produced at each
+step so subsequent steps can read prior context directly instead of recomputing
+it. Each new step processes only the one new token.</p>
+<p><code>PipelineModelWithKVCache</code> is designed around this pattern. Before the first
+token runs, the framework allocates cache storage for the entire model: one slot
+per layer, per head, per position up to the maximum sequence length. To do that
+it needs the cache dimensions upfront. That’s exactly what
+<a href="https://docs.modular.com/max/api/python/generated/max.pipelines.lib.interfaces.ArchConfigWithAttentionKVCache/"><code>ArchConfigWithAttentionKVCache</code></a>
+requires your config to provide: how many layers, how many KV heads, how large
+each head is, and the maximum sequence length.</p>
+<p>For GPT-2 here, the cache is allocated but never used. The forward pass
+recomputes every key and value tensor from scratch on each step, which works
+for a small model with short sequences. In a production model,
+re-processing the full history on every step makes generation quadratically
+more expensive as context grows and limits how many requests the server can
+handle concurrently.</p>
+<p>When you bring up a model that uses an incremental KV cache, you’d keep the same
+config structure and add cache reads and writes to the forward pass.
+<a href="https://docs.modular.com/max/api/python/generated/max.nn.kv_cache.KVCacheInputs/"><code>KVCacheInputs</code></a>
+are passed into each decode step, and the framework manages cache lifetimes
+across requests. When your forward pass reads and writes that cache, each step
+processes only the one new token. The four properties below are the same in both
+cases; implementing the cache is what makes a model ready to serve at scale.</p>
+<h2 id="cache-dimensions"><a class="header" href="#cache-dimensions">Cache dimensions</a></h2>
+<p><strong><code>num_layers</code>:</strong> is the number of transformer blocks: 12 for GPT-2 small.
+Each block produces its own key and value tensors, so the cache has 12 layers.</p>
+<p><strong><code>num_key_value_heads</code>:</strong> is the number of key-value pairs per attention
+layer. GPT-2 uses plain multi-head attention, where every query head has its own
+key and value head, so this equals <code>n_head</code> (12). Models with grouped-query
+attention (GQA) return a smaller number here. LLaMA 3.1 8B has 32 query heads
+but only 8 KV heads; fewer KV heads means a smaller cache.</p>
+<p><strong><code>head_dim</code>:</strong> is the feature size of each head: <code>n_embd // n_head</code> = 768 ÷
+12 = 64. This is the depth of each cached key and value tensor.</p>
+<p><strong><code>model_max_seq_len</code>:</strong> is the upper bound on token sequence length. GPT-2’s
+context window is 1,024 tokens (<code>n_positions</code>).</p>
+<h2 id="the-configuration-class"><a class="header" href="#the-configuration-class">The configuration class</a></h2>
+<p><code>GPT2ArchConfig</code> extends
+<a href="https://docs.modular.com/max/api/python/generated/max.pipelines.lib.interfaces.ArchConfigWithAttentionKVCache/"><code>ArchConfigWithAttentionKVCache</code></a>,
+which handles the cache allocation machinery. The subclass reads each dimension
+from the Hugging Face config object:</p>
+<pre><code class="language-python:model_config.py">from __future__ import annotations
 
-Implement autoregressive text generation with sampling and temperature control.
+from dataclasses import dataclass
 
-Tasks:
-1. Import required modules (numpy, F, Tensor, DType, CPU)
-2. Implement the generate_text function with temperature scaling
-3. Add sampling logic with temperature control
-4. Concatenate new tokens to generate sequences
-
-Run: pixi run s10
-"""
-
-# TODO: Import required modules
-# Hint: You'll need numpy as np
-# Hint: You'll need CPU from max.driver
-# Hint: You'll need DType from max.dtype
-# Hint: You'll need functional as F from max.nn
-# Hint: You'll need Tensor from max.experimental.tensor
-
-from max.driver import Device
-from max.nn.module_v3 import Module
-from transformers import GPT2Tokenizer
+from max.pipelines.lib.interfaces.arch_config import (
+    ArchConfigWithAttentionKVCache,
+)
 
 
-def generate_text(
-    model: Module,
-    tokenizer: GPT2Tokenizer,
-    device: Device,
-    prompt: str,
-    max_new_tokens: int = 50,
-    temperature: float = 0.8,
-    do_sample: bool = True,
-) -&gt; str:
-    """Generate text using the Max model.
+@dataclass
+class GPT2ArchConfig(ArchConfigWithAttentionKVCache):
+    @property
+    def num_key_value_heads(self) -&gt; int:
+        """GPT-2 uses plain MHA: n_kv_heads == n_head."""
+        return self.huggingface_config.n_head  # type: ignore[union-attr]
 
-    Args:
-        model: Compiled MAX model
-        tokenizer: HuggingFace tokenizer
-        device: Device to run on
-        prompt: Starting text
-        max_new_tokens: Number of tokens to generate
-        temperature: Sampling temperature (higher = more random)
-        do_sample: Whether to sample or use greedy decoding
+    @property
+    def head_dim(self) -&gt; int:
+        hf = self.huggingface_config
+        return hf.n_embd // hf.n_head  # type: ignore[union-attr]
 
-    Returns:
-        Generated text string
-    """
-    # TODO: Tokenize the prompt text
-    # Hint: Use encode_text(prompt, tokenizer, device, max_length=100)
-    generated_tokens = None
+    @property
+    def num_layers(self) -&gt; int:
+        return self.huggingface_config.n_layer  # type: ignore[union-attr]
 
-    print(f"Starting generation from: '{prompt}'")
-    print(
-        f"Settings: max_new_tokens={max_new_tokens}, temperature={temperature}, do_sample={do_sample}"
-    )
-    print("-" * 50)
+    @property
+    def model_max_seq_len(self) -&gt; int:
+        return self.huggingface_config.n_positions  # type: ignore[union-attr]
 
-    # TODO: Implement generation loop for max_new_tokens steps
-    # Hint: for step in range(max_new_tokens):
-    pass
 
-    # TODO: Get model predictions (logits) for current sequence
-    # Hint: logits = model(generated_tokens)
-
-    # TODO: Extract logits for next token prediction
-    # Hint: next_token_logits = logits[0, -1, :]
-    # Note: Shape is [batch, seq_len, vocab_size], we want last position
-
-    # TODO: Apply temperature scaling if sampling
-    # Hint: if do_sample and temperature &gt; 0:
-    #     Create a temperature tensor with Tensor.constant()
-    #     Divide next_token_logits by temperature
-    #     Apply softmax: probs = F.softmax(next_token_logits)
-    #     Convert to numpy with explicit type annotation: probs_np: np.ndarray = np.from_dlpack(probs.to(CPU()))
-    #     Ensure it's 1D: if probs_np.ndim &gt; 1: probs_np = probs_np.flatten()
-    #     Convert to float for np.random.choice: probs_np = probs_np.astype(np.float64)
-    #     Sample: next_token_id = np.random.choice(len(probs_np), p=probs_np)
-    #     Convert back to tensor: next_token_tensor = Tensor.constant(next_token_id, dtype=DType.int64, device=generated_tokens.device)
-    # Note: np.random.choice requires p to be a 1D float array
-
-    # TODO: Use greedy decoding if not sampling
-    # Hint: else: next_token_tensor = F.argmax(next_token_logits)
-
-    # TODO: Reshape next token to 2D for concatenation
-    # Hint: next_token_2d = next_token_tensor.reshape([1, -1])
-
-    # TODO: Concatenate to growing sequence
-    # Hint: generated_tokens = F.concat([generated_tokens, next_token_2d], axis=1)
-
-    # TODO: Print progress every 5 steps
-    # Hint: if step % 5 == 0 or step == max_new_tokens - 1:
-    #     current_text = decode_tokens(generated_tokens, tokenizer)
-    #     print(f"Step {step + 1:2d}: {current_text}")
-
-    # TODO: Decode final generated sequence
-    # Hint: final_text = decode_tokens(generated_tokens, tokenizer)
-    final_text = None
-
-    print("-" * 50)
-    print(f"Final generated text: '{final_text}'")
-    return final_text
 </code></pre>
-<h3 id="validation"><a class="header" href="#validation">Validation</a></h3>
-<p>Run <code>pixi run s10</code> to verify your implementation.</p>
-<details>
-<summary>Show solution</summary>
-<pre><code class="language-python"># ===----------------------------------------------------------------------=== #
-#
-# This file is Modular Inc proprietary.
-#
-# ===----------------------------------------------------------------------=== #
-"""
-Solution for Step 10: Text Generation
-
-This module implements autoregressive text generation using the GPT-2 model.
-"""
-
-import max.experimental.functional as F
-import numpy as np
-from max.driver import CPU, Device
-from max.dtype import DType
-from max.experimental.tensor import Tensor
-from max.nn.module_v3 import Module
-from step_09 import decode_tokens, encode_text
-from transformers import GPT2Tokenizer
-
-
-def generate_text(
-    model: Module,
-    tokenizer: GPT2Tokenizer,
-    device: Device,
-    prompt: str,
-    max_new_tokens: int = 50,
-    temperature: float = 0.8,
-    do_sample: bool = True,
-) -&gt; str:
-    """Generate text using the Max model."""
-    generated_tokens = encode_text(prompt, tokenizer, device, max_length=100)
-
-    print(f"Starting generation from: '{prompt}'")
-    print(
-        f"Settings: max_new_tokens={max_new_tokens}, temperature={temperature}, do_sample={do_sample}"
-    )
-    print("-" * 50)
-
-    for step in range(max_new_tokens):
-        logits = model(generated_tokens)
-        next_token_logits = logits[0, -1, :]
-
-        if do_sample and temperature &gt; 0:
-            # Simple temperature scaling without top-k
-            temp_tensor = Tensor.constant(
-                temperature,
-                dtype=next_token_logits.dtype,
-                device=next_token_logits.device,
-            )
-            next_token_logits = next_token_logits / temp_tensor
-            probs = F.softmax(next_token_logits)
-
-            # Convert to numpy for actual sampling
-            # Explicitly convert to 1D float array for np.random.choice
-            probs_np: np.ndarray = np.from_dlpack(probs.to(CPU()))
-            if probs_np.ndim &gt; 1:
-                probs_np = probs_np.flatten()
-            probs_np = probs_np.astype(np.float64)
-            next_token_id = np.random.choice(len(probs_np), p=probs_np)
-            next_token_tensor = Tensor.constant(
-                next_token_id, dtype=DType.int64, device=generated_tokens.device
-            )
-        else:
-            next_token_tensor = F.argmax(next_token_logits)
-
-        next_token_2d = next_token_tensor.reshape([1, -1])
-        generated_tokens = F.concat([generated_tokens, next_token_2d], axis=1)
-
-        if step % 5 == 0 or step == max_new_tokens - 1:
-            current_text = decode_tokens(generated_tokens, tokenizer)
-            print(f"Step {step + 1:2d}: {current_text}")
-
-    final_text = decode_tokens(generated_tokens, tokenizer)
-    print("-" * 50)
-    print(f"Final generated text: '{final_text}'")
-    return final_text
-</code></pre>
-</details>
-<p><strong>Next</strong>: In <a href="./step_11.html">Step 11</a>, you’ll load pretrained weights and
-interact with your complete GPT-2 implementation!</p>
+<p><strong>Next</strong>: <a href="./step_11.html">Pipeline model</a> covers <code>model.py</code>, which loads the
+compiled model, runs it, and manages the token sequence between decode steps.</p>
 
                     </main>
 
